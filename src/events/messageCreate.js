@@ -26,7 +26,7 @@ module.exports = class extends Event {
         const args = message.content
             .slice(prefix.length)
             .trim()
-            .split(' ');
+            .split(/ +/g);
         const name = args.shift();
 
         const handler = entryMap.get(name.toLowerCase());
