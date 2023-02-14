@@ -1,23 +1,35 @@
 const Command = require('#lib/structures/Command.js');
 
+const tags = require('#src/tags.js');
+
 module.exports = class extends Command {
     name = 'tags';
     aliases = ['tag'];
 
     async run(message, [tagName]) {
         if (!tagName) {
-            const list = Array.from(this.client.tags.values()).join(', ');
+            const list = tags
+                .map(tag => tag.name)
+                .join(', ');
 
-            return message.editReply(list);
+            return message.editReply('Available tags: ' + list);
         }
 
-        const tag = client.tags.get(tagName);
+        const tag = this.client.tags.get(tagName);
         if (tag) {
-            return message.editReply([
+            const list = [
                 'Name: ' + tag.name,
-                'Aliases: ' + tag.aliases.join(', '),
-                'Text: ' + tag.rawText
-            ].join('\n'));
+                'Aliases: ' + tag.aliases.join(', ')
+            ];
+            if (tag.rawText) {
+                // include \n prefix when the tag spans multiple lines
+                const nl = tag.rawText.includes('\n') ? '\n' : '';
+
+                list.push('Text: ' + nl + tag.rawText);
+            }
+            return message.editReply(list.join('\n'));
         }
+
+        return message.editReply('tag not found');
     }
 }
