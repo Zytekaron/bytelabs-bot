@@ -6,10 +6,8 @@ module.exports = class {
 
         this.globalResolver = globalResolver;
 
-        const { text, args } = this._calculatePrefill(input);
-        this.text = text;
-        this.args = args;
-        this.expectedArgs = this._calculateExpectedArgs(args);
+        this.segments = this._calculatePrefill(input);
+        this.minArgs = this._calculateMinArgs(this.segments);
     }
 
     static evalWithContext(context = {}) {
@@ -22,43 +20,42 @@ module.exports = class {
     }
 
     fill(args, resolver = this.globalResolver) {
-        if (args.length < this.expectedArgs) {
+        if (args.length < this.minArgs) {
             throw new Error('not enough arguments');
         }
 
         let argsIndex = 0;
-        const resolveArg = (arg) => {
-            switch (arg.type) {
+        const resolveSegment = (segment) => {
+            switch (segment.type) {
+                case 'text':
+                    return segment.value;
                 case 'positional':
                     return args[argsIndex++];
                 case 'indexed':
-                    return args[arg.value];
+                    return args[segment.value];
                 case 'expression':
-                    return resolver(arg.value);
+                    return resolver(segment.value);
             }
         }
 
-        const buf = [this.text[0]];
-
-        for (let i = 0; i < this.args.length; i++) {
-            buf.push(resolveArg(this.args[i]));
-            buf.push(this.text[i + 1]);
+        const buf = [];
+        for (const segment of this.segments) {
+            buf.push(resolveSegment(segment));
         }
-
         return buf.join('');
     }
 
-    _calculateExpectedArgs(args) {
+    _calculateMinArgs(segments) {
         let positional = 0;
         let indexed = 0;
 
-        for (const arg of args) {
-            switch (arg.type) {
+        for (const segment of segments) {
+            switch (segment.type) {
                 case 'positional':
                     positional++;
                     break;
                 case 'indexed':
-                    indexed = Math.max(indexed, arg.value);
+                    indexed = Math.max(indexed, segment.value);
                     break;
             }
         }
@@ -67,17 +64,21 @@ module.exports = class {
     }
 
     _calculatePrefill(input) {
-        const text = []; // surrounding text segments
-        const args = []; // infilled arguments
+        const segments = [];
+        const segmentTextBuffer = [];
 
         let inputIndex = 0;
         let nextChar = () => input[inputIndex++];
 
-        let textIndex = 0;
-        let pushText = str => {
-            text[textIndex] ??= '';
-            text[textIndex] += str;
-        }
+        const commit = () => {
+            if (segmentTextBuffer.length > 0) {
+                segments.push({
+                    type: 'text',
+                    value: segmentTextBuffer.join('')
+                })
+                segmentTextBuffer.length = 0;
+            }
+        };
 
         let positionalIndex = 0;
 
@@ -87,13 +88,14 @@ module.exports = class {
 
             switch (c) {
                 case '\\': // skip \*
-                    pushText(nextChar());
+                    segmentTextBuffer.push(nextChar());
                     continue;
-                case '{': // read variable at {
+                case '{': // write text buffer and read variable at {
+                    commit();
                     readVariable();
                     break;
                 default:
-                    pushText(c);
+                    segmentTextBuffer.push(c);
             }
 
             // read and evaluate variables from the string
@@ -113,26 +115,26 @@ module.exports = class {
 
                 const str = input.substring(start, inputIndex - 1);
                 if (str.length == 0) { // {}
-                    args.push({
+                    segments.push({
                         type: 'positional',
                         value: positionalIndex++,
                     });
                 } else if (/^\d+$/g.test(str)) { // {123}
-                    args.push({
+                    segments.push({
                         type: 'indexed',
                         value: parseInt(str),
                     });
                 } else { // {'hello, world!'.length + 3}
-                    args.push({
+                    segments.push({
                         type: 'expression',
                         value: str,
                     });
                 }
-
-                textIndex++;
             }
         }
 
-        return { text, args };
+        commit();
+
+        return segments;
     }
 }
