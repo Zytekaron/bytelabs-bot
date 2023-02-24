@@ -55,7 +55,7 @@ module.exports = class {
                     positional++;
                     break;
                 case 'indexed':
-                    indexed = Math.max(indexed, segment.value);
+                    indexed = Math.max(indexed, segment.value + 1);
                     break;
             }
         }
