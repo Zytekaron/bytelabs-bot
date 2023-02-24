@@ -19,7 +19,7 @@ module.exports = class {
         }
     }
 
-    fill(args, resolver = this.globalResolver) {
+    fill(args = [], resolver = this.globalResolver) {
         if (args.length < this.minArgs) {
             throw new Error('not enough arguments');
         }
@@ -38,11 +38,9 @@ module.exports = class {
             }
         }
 
-        const buf = [];
-        for (const segment of this.segments) {
-            buf.push(resolveSegment(segment));
-        }
-        return buf.join('');
+        return this.segments
+            .map(segment => resolveSegment(segment))
+            .join('');
     }
 
     _calculateMinArgs(segments) {
