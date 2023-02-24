@@ -22,7 +22,7 @@ module.exports = class {
     }
 
     fill(args, resolver = this.globalResolver) {
-        if (args.length != this.expectedArgs) {
+        if (args.length < this.expectedArgs) {
             throw new Error('not enough arguments');
         }
 
