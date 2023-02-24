@@ -1,6 +1,6 @@
 // just because you can, doesn't mean you should
 
-const parser = require('#src/utils/positional-parser.js');
+const Filler = require('#src/utils/filler.js');
 
 module.exports = [];
 
@@ -42,32 +42,41 @@ addTag({
 });
 
 function addTag({ name, aliases, rawText, minArgs, handler }) {
-    const requiredArgs = minArgs ?? calculateRequiredArgs(rawText);
+    if (handler) {
+        module.exports.push({
+            name,
+            aliases,
+            rawText,
+            run: applyFilters(
+                handler,
+                filterMinArgs(minArgs)
+            ),
+        });
+    } else {
+        const filler = new Filler(rawText);
+        const handler = replyFactory(filler);
 
-    const run = handler
-        ? handler
-        : replyFactory(rawText);
-
-    module.exports.push({
-        name,
-        aliases,
-        rawText,
-        run: applyFilters(
-            run,
-            filterMinArgs(requiredArgs)
-        ),
-    });
+        module.exports.push({
+            name,
+            aliases,
+            rawText,
+            run: applyFilters(
+                handler,
+                filterMinArgs(filler.minArgs)
+            ),
+        });
+    }
 }
 
-function replyFactory(source) {
+function replyFactory(filler) {
     return async (message, args) => {
         // get text for reply
-        const text = getText(source, args, {
+        const text = filler.fill(args, Filler.evalWithContext({
             message,
             client: message.client,
             author: message.author,
             member: message.member,
-        });
+        }));
 
         // reply and delete message concurrently
         const reply = message.editSend(text);
@@ -77,30 +86,6 @@ function replyFactory(source) {
         // return sent message
         return reply;
     };
-}
-
-// this function is not safe to use with user input!
-function getText(source, args, context) {
-    // arrow func + with: used to enclose local scoped variables
-    with (context) {
-        return parser(source, args, text => eval(text));
-    }
-}
-
-function calculateRequiredArgs(text) {
-    // number of {} args
-    const maxOrdered = text.split('{}').length - 1;
-
-    // maximum value {#} arg
-    const indexedMatches = text.match(/\{\d+\}/g) || [];
-    const maxIndexed = indexedMatches
-        .map(v => v.substring(1, v.length - 1))
-        .map(v => parseInt(v))
-        .sort((a, b) => b - a)
-        ?.[0] ?? -1; // (the ?. is an indentation hack!)
-
-    // the larger of the two
-    return Math.max(maxOrdered, maxIndexed + 1);
 }
 
 // Filters
