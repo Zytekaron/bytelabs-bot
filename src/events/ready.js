@@ -1,7 +1,6 @@
 const Event = require('#lib/structures/Event.js');
 
-class BASE { constructor(client) { this.client = client; } }
-module.exports = class extends BASE {
+module.exports = class extends Event {
     name = 'ready';
 
     constructor(client) {

@@ -6,6 +6,7 @@ module.exports = async function* walk(path, cb) {
 
     for await (const item of dir) {
         const file = join(dir.path, item.name);
+
         if (item.isFile()) {
             if (cb(file)) {
                 yield file;

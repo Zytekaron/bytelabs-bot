@@ -32,14 +32,11 @@ const client = new Client({
 });
 
 Object.assign(client, {
-    events: new Map(),
-
     commandPrefix: '!',
-    commands: new Map(),
-
     tagPrefix: '?',
+    commands: new Map(),
     tags: new Map(),
-
+    events: new Map(),
     replies: new Map(),
 });
 
